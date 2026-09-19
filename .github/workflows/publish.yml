@@ -1,0 +1,94 @@
+name: Build and publish dashboard
+
+# The site is rebuilt on a schedule and deployed straight to GitHub Pages from
+# the build artifact. Nothing is committed back to the repository: the map alone
+# is ~700 KB and git keeps every version forever, so committing each rebuild
+# would grow the repo without bound.
+
+on:
+  schedule:
+    # Every six hours, deliberately off the hour -- GitHub delays scheduled runs
+    # during the load spike at :00. Times are UTC.
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      feed:
+        description: "USGS summary feed"
+        type: choice
+        default: week
+        options: [hour, day, week, month, significant_month]
+      min_magnitude:
+        description: "Minimum magnitude"
+        default: "4.0"
+      radius_km:
+        description: "Impact radius in km"
+        default: "50"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "data/**"
+      - "requirements.txt"
+      - ".github/workflows/publish.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a deploy half way; queue instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build the site
+        run: |
+          python -m seismic_monitor \
+            --feed "${{ inputs.feed || 'week' }}" \
+            --min-magnitude "${{ inputs.min_magnitude || '4.0' }}" \
+            --radius-km "${{ inputs.radius_km || '50' }}" \
+            --output-dir site
+        env:
+          PYTHONPATH: src
+          # Optional: set this repository secret to use CARTO's dark basemap.
+          # Without it the build uses the keyless Esri dark canvas.
+          CARTO_API_KEY: ${{ secrets.CARTO_API_KEY }}
+
+      - name: Check the build produced something
+        run: |
+          test -s site/index.html
+          test -s site/seismic_risk_map.html
+          test -s site/summary.json
+          echo "Site contents:" && ls -la site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

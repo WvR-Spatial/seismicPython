@@ -1,0 +1,204 @@
+{
+ "type": "FeatureCollection",
+ "metadata": {
+  "generated": 1772366400000,
+  "title": "Synthetic test feed",
+  "count": 8,
+  "api": "1.10.3",
+  "status": 200
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "id": "fx001",
+   "properties": {
+    "mag": 6.2,
+    "place": "Anchorage, Alaska",
+    "time": 1772344800000,
+    "updated": 1772344800000,
+    "tsunami": 0,
+    "sig": 768,
+    "type": "earthquake",
+    "title": "M 6.2 - Anchorage, Alaska",
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx001"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -149.9,
+     61.22,
+     41.0
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "fx002",
+   "properties": {
+    "mag": 5.1,
+    "place": "Fiji region",
+    "time": 1772294400000,
+    "updated": 1772294400000,
+    "tsunami": 0,
+    "sig": 520,
+    "type": "earthquake",
+    "title": "M 5.1 - Fiji region",
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx002"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     179.8,
+     -16.5,
+     520.0
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "fx003",
+   "properties": {
+    "mag": 4.5,
+    "place": "Valparaiso, Chile",
+    "time": 1772254800000,
+    "updated": 1772254800000,
+    "tsunami": 0,
+    "sig": 405,
+    "type": "earthquake",
+    "title": "M 4.5 - Valparaiso, Chile",
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx003"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -70.66,
+     -33.45,
+     88.0
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "fx004",
+   "properties": {
+    "mag": 3.1,
+    "place": "Tokyo, Japan",
+    "time": 1772208000000,
+    "updated": 1772208000000,
+    "tsunami": 0,
+    "sig": 192,
+    "type": "earthquake",
+    "title": "M 3.1 - Tokyo, Japan",
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx004"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     139.69,
+     35.69,
+     30.0
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "fx005",
+   "properties": {
+    "mag": 7.0,
+    "place": "Rat Islands, Aleutian Islands",
+    "time": 1772179200000,
+    "updated": 1772179200000,
+    "tsunami": 1,
+    "sig": 980,
+    "type": "earthquake",
+    "title": "M 7.0 - Rat Islands, Aleutian Islands",
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx005"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -178.0,
+     51.5,
+     12.0
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "fx006",
+   "properties": {
+    "mag": 5.5,
+    "place": "Marmara Sea, Turkey",
+    "time": 1772150400000,
+    "updated": 1772150400000,
+    "tsunami": 0,
+    "sig": 605,
+    "type": "earthquake",
+    "title": "M 5.5 - Marmara Sea, Turkey",
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx006"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     28.8,
+     40.95,
+     10.0
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "fx007",
+   "properties": {
+    "mag": 6.0,
+    "place": "Marmara Sea, Turkey",
+    "time": 1772128800000,
+    "updated": 1772128800000,
+    "tsunami": 0,
+    "sig": 720,
+    "type": "earthquake",
+    "title": "M 6.0 - Marmara Sea, Turkey",
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx007"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     29.1,
+     41.1,
+     14.0
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "fx008",
+   "properties": {
+    "mag": 4.8,
+    "place": "Western Australia (remote)",
+    "time": 1772114400000,
+    "updated": 1772114400000,
+    "tsunami": 0,
+    "sig": 460,
+    "type": "earthquake",
+    "title": "M 4.8 - Western Australia (remote)",
+    "url": "https://earthquake.usgs.gov/earthquakes/eventpage/fx008"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     120.5,
+     -25.0,
+     5.0
+    ]
+   }
+  }
+ ],
+ "bbox": [
+  -179.0,
+  -33.5,
+  -5.0,
+  179.9,
+  61.3,
+  520.0
+ ]
+}

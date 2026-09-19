@@ -1,0 +1,13 @@
+# Runtime dependencies. Upper bounds keep the scheduled build reproducible;
+# bump them deliberately rather than letting a major release break a 03:00 run.
+geopandas>=1.0,<2.0
+shapely>=2.0,<3.0
+pyproj>=3.6,<4.0
+folium>=0.16,<1.0
+plotly>=5.22,<8.0
+pandas>=2.0,<4.0
+requests>=2.31,<3.0
+
+# Optional: static PNG export of the chart. The build logs a warning and carries
+# on without it.
+kaleido>=0.2.1

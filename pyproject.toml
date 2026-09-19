@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "seismic-risk-monitor"
+version = "2.0.0"
+description = "Geodesic seismic exposure screening from the live USGS earthquake feed"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Warren van Ryn" }]
+keywords = ["earthquake", "usgs", "geospatial", "geopandas", "folium"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Scientific/Engineering :: GIS",
+]
+dependencies = [
+  "geopandas>=1.0,<2.0",
+  "shapely>=2.0,<3.0",
+  "pyproj>=3.6,<4.0",
+  "folium>=0.16,<1.0",
+  "plotly>=5.22",
+  "pandas>=2.0",
+  "requests>=2.31",
+]
+
+[project.optional-dependencies]
+png = ["kaleido>=0.2.1"]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+seismic-monitor = "seismic_monitor.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/WvR-Spatial/seismicPython"
+Dashboard = "https://wvr-spatial.github.io/seismicPython/"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]

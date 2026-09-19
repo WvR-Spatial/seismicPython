@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest ruff
+
+      - name: Lint
+        run: ruff check src tests tools
+
+      - name: Test
+        # The suite is fully offline: it runs against tests/fixtures/sample_feed.geojson,
+        # so a USGS outage can never turn CI red.
+        run: pytest -v
+
+  smoke:
+    # One real fetch per push, so a breaking change in the USGS feed schema shows
+    # up here rather than in a 03:00 scheduled build.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Build against the live feed
+        run: python -m seismic_monitor --feed day --output-dir site
+        env:
+          PYTHONPATH: src
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}

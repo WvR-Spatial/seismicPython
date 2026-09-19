@@ -194,14 +194,31 @@ def _resolve_basemap(key: str, config: Config) -> tuple[str, dict, str]:
 
 
 def _add_basemaps(fmap: folium.Map, config: Config) -> None:
-    """Add the chosen basemap plus one keyless alternative."""
+    """Add the chosen basemap plus alternatives from the same provider.
+
+    Alternatives stay within the provider that is already authenticated. The
+    obvious "free fallback" -- ``tile.openstreetmap.org`` -- is deliberately not
+    used: the OSM Foundation's Tile Usage Policy does not allow their servers to
+    back a third-party application's basemap, and a published dashboard doing so
+    gets flagged as misuse. OSM data is still underneath the Mapbox styles.
+    """
     requested = config.basemap if config.basemap in theme.BASEMAPS else theme.DEFAULT_BASEMAP
     key, spec, url = _resolve_basemap(requested, config)
 
+    alternates = (
+        theme.MAPBOX_ALTERNATES if key.startswith("mapbox-") else theme.KEYLESS_ALTERNATES
+    )
+
     layers = [(key, spec, url)]
-    if key != theme.FALLBACK_BASEMAP:
-        fallback = theme.BASEMAPS[theme.FALLBACK_BASEMAP]
-        layers.append((theme.FALLBACK_BASEMAP, fallback, fallback["url"]))
+    seen = {key}
+    for alternate in alternates:
+        if alternate in seen or alternate not in theme.BASEMAPS:
+            continue
+        alt_key, alt_spec, alt_url = _resolve_basemap(alternate, config)
+        if alt_key in seen:
+            continue
+        seen.add(alt_key)
+        layers.append((alt_key, alt_spec, alt_url))
 
     for index, (_key, layer_spec, layer_url) in enumerate(layers):
         folium.TileLayer(

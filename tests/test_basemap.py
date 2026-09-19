@@ -82,9 +82,46 @@ def test_the_token_placeholder_never_reaches_the_output(tmp_path, feed_path) -> 
         assert not html.rstrip().endswith("access_token=")
 
 
-def test_a_keyless_alternative_layer_is_always_offered(tmp_path, feed_path) -> None:
+def test_osm_tile_servers_are_never_used(tmp_path, feed_path) -> None:
+    """The OSM Foundation's Tile Usage Policy does not allow this use.
+
+    Their tile servers backed an earlier "free fallback" layer here and the
+    published map was flagged for policy misuse. OSM data still underpins the
+    Mapbox styles, but the tiles must come from Mapbox. The attribution link to
+    openstreetmap.org/copyright is required and is not a tile request.
+    """
+    for kwargs in ({}, {"mapbox_token": FAKE_TOKEN}, {"basemap": "carto-dark"}):
+        html = build(tmp_path / f"o{len(kwargs)}", feed_path, **kwargs)
+        assert "tile.openstreetmap.org" not in html
+        assert "openstreetmap.org/{z}" not in html
+
+    assert "osm" not in theme.BASEMAPS
+    assert not any(
+        "tile.openstreetmap.org" in spec["url"] for spec in theme.BASEMAPS.values()
+    )
+
+
+def test_alternate_layers_come_from_the_same_provider(tmp_path, feed_path) -> None:
     html = build(tmp_path, feed_path, mapbox_token=FAKE_TOKEN)
-    assert "tile.openstreetmap.org" in html
+    for style in ("dark-v11", "satellite-streets-v12", "outdoors-v12"):
+        assert style in html, f"expected the {style} layer in the switcher"
+
+
+def test_keyless_fallback_still_offers_an_alternative(tmp_path, feed_path) -> None:
+    html = build(tmp_path, feed_path)
+    assert "World_Dark_Gray_Base" in html
+    assert "World_Light_Gray_Base" in html
+
+
+def test_every_offered_layer_is_authenticated(tmp_path, feed_path) -> None:
+    """No alternate may render tokenless Mapbox tiles that would 401."""
+    html = build(tmp_path, feed_path, mapbox_token=FAKE_TOKEN)
+    mapbox_urls = [
+        line for line in html.splitlines() if "api.mapbox.com" in line and "tiles/256" in line
+    ]
+    assert mapbox_urls
+    for line in mapbox_urls:
+        assert FAKE_TOKEN in line
 
 
 def test_every_mapbox_style_resolves(tmp_path, feed_path) -> None:

@@ -85,7 +85,8 @@ install the rest with pip.
 --radius-km FLOAT                                impact radius, geodesic (default: 50)
 --cities PATH                                    any GeoJSON with name + pop_max columns
 --output-dir PATH                                default: ./site
---basemap {mapbox-dark,mapbox-light,mapbox-satellite,esri-dark,esri-light,osm,carto-dark}
+--basemap {mapbox-dark,mapbox-satellite,mapbox-outdoors,mapbox-light,
+           mapbox-streets,esri-dark,esri-light,carto-dark}
                                                  default: mapbox-dark
 --mapbox-token pk....                            prefer the MAPBOX_TOKEN env var
 --max-chart-cities INT                           default: 15
@@ -218,9 +219,27 @@ export MAPBOX_TOKEN="pk...."      # bash / zsh
 `--mapbox-token pk....` also works, but a token passed on the command line ends
 up in your shell history, so the environment variable is preferred.
 
-`--basemap` also accepts `mapbox-light`, `mapbox-satellite`, `esri-dark`,
-`esri-light`, `osm` and `carto-dark`. OpenStreetMap is always added as a second
-selectable layer, so a tile outage or a bad token never leaves a blank rectangle.
+`--basemap` also accepts `mapbox-satellite`, `mapbox-outdoors` (terrain),
+`mapbox-light`, `mapbox-streets`, `esri-dark`, `esri-light` and `carto-dark`.
+
+The layer switcher offers the chosen style plus **Satellite** and **Terrain** —
+satellite gives physical context for a remote epicentre, terrain shows the relief
+that usually explains why the seismicity is there. One token covers every Mapbox
+style, so the extra layers cost nothing.
+
+#### Why there is no OpenStreetMap layer
+
+An earlier version offered `tile.openstreetmap.org` as a free fallback. That was
+wrong, and the published map was flagged for policy misuse. The OSM Foundation's
+[Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/) does
+not allow their servers to back a third-party application's basemap: it requires
+a distinctive `User-Agent`, a valid `Referer`, local caching, and it prohibits
+automated or bulk fetching. A dashboard serving arbitrary visitors does not meet
+that bar. OSM data still underlies the Mapbox styles — Mapbox serves the tiles
+and the map carries the required "© OpenStreetMap" attribution.
+
+Every alternate layer now comes from a provider the build has already
+authenticated, so no layer can quietly depend on someone else's goodwill.
 
 **If no token is found, the build does not fail** -- it logs a warning and uses
 the keyless Esri dark canvas instead. A tokenless Mapbox layer would 401 on every

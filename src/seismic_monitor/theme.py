@@ -46,46 +46,42 @@ MAPBOX_ATTRIBUTION = (
     'rel="noopener"><strong>Improve this map</strong></a>'
 )
 
+def _mapbox(style: str, label: str) -> dict[str, str]:
+    return {
+        "url": (
+            f"https://api.mapbox.com/styles/v1/mapbox/{style}/tiles/256/"
+            "{z}/{x}/{y}@2x?access_token={token}"
+        ),
+        "attr": MAPBOX_ATTRIBUTION,
+        "name": f"{label} (Mapbox)",
+        "max_zoom": "22",
+        "token_env": "MAPBOX_TOKEN",
+    }
+
+
 #: Basemaps, keyed by the CLI ``--basemap`` value.
 #:
 #: ``token_env`` names the environment variable holding that provider's access
 #: token. A basemap that needs one and cannot find it falls back to
 #: :data:`DEFAULT_BASEMAP` rather than rendering broken or watermarked tiles.
 #:
+#: Note what is *not* here: ``tile.openstreetmap.org``. The OSM Foundation's Tile
+#: Usage Policy does not permit their servers to be used as a general basemap by
+#: a third-party application -- it requires a distinctive User-Agent, a valid
+#: Referer, local caching, and forbids automated or bulk fetching, and a
+#: published dashboard serving arbitrary visitors gets flagged as misuse. OSM
+#: data still underpins the Mapbox styles; Mapbox serves the tiles and carries
+#: the attribution.
+#:
 #: CARTO's raster basemaps (``dark_matter``, ``positron``) now require an API key
 #: and stamp an "API KEY REQUIRED" watermark across unauthenticated tiles, which
 #: is why the keyless fallback is Esri's dark canvas rather than CARTO's.
 BASEMAPS: dict[str, dict[str, str]] = {
-    "mapbox-dark": {
-        "url": (
-            "https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/"
-            "{z}/{x}/{y}@2x?access_token={token}"
-        ),
-        "attr": MAPBOX_ATTRIBUTION,
-        "name": "Dark (Mapbox)",
-        "max_zoom": "22",
-        "token_env": "MAPBOX_TOKEN",
-    },
-    "mapbox-light": {
-        "url": (
-            "https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/"
-            "{z}/{x}/{y}@2x?access_token={token}"
-        ),
-        "attr": MAPBOX_ATTRIBUTION,
-        "name": "Light (Mapbox)",
-        "max_zoom": "22",
-        "token_env": "MAPBOX_TOKEN",
-    },
-    "mapbox-satellite": {
-        "url": (
-            "https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/256/"
-            "{z}/{x}/{y}@2x?access_token={token}"
-        ),
-        "attr": MAPBOX_ATTRIBUTION,
-        "name": "Satellite (Mapbox)",
-        "max_zoom": "22",
-        "token_env": "MAPBOX_TOKEN",
-    },
+    "mapbox-dark": _mapbox("dark-v11", "Dark"),
+    "mapbox-satellite": _mapbox("satellite-streets-v12", "Satellite"),
+    "mapbox-outdoors": _mapbox("outdoors-v12", "Terrain"),
+    "mapbox-light": _mapbox("light-v11", "Light"),
+    "mapbox-streets": _mapbox("streets-v12", "Streets"),
     "esri-dark": {
         "url": (
             "https://server.arcgisonline.com/ArcGIS/rest/services/"
@@ -104,12 +100,6 @@ BASEMAPS: dict[str, dict[str, str]] = {
         "name": "Light canvas (Esri)",
         "max_zoom": "16",
     },
-    "osm": {
-        "url": "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "attr": "&copy; OpenStreetMap contributors",
-        "name": "OpenStreetMap",
-        "max_zoom": "19",
-    },
     "carto-dark": {
         "url": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={token}",
         "attr": "&copy; OpenStreetMap contributors &copy; CARTO",
@@ -122,7 +112,15 @@ BASEMAPS: dict[str, dict[str, str]] = {
 #: Preferred basemap. Needs MAPBOX_TOKEN; without it the build silently uses
 #: DEFAULT_BASEMAP so a local run with no credentials still produces a usable map.
 PREFERRED_BASEMAP = "mapbox-dark"
+
 #: Keyless basemap used whenever a token-bearing basemap has no token.
 DEFAULT_BASEMAP = "esri-dark"
-#: Always offered as an alternative layer, so a tile outage never leaves a blank map.
-FALLBACK_BASEMAP = "osm"
+
+#: Extra base layers offered in the layer switcher alongside the chosen one.
+#: Satellite gives physical context for a remote epicentre and terrain shows the
+#: relief that usually explains why the seismicity is there. One Mapbox token
+#: covers every style, so these cost nothing extra to offer.
+MAPBOX_ALTERNATES = ("mapbox-satellite", "mapbox-outdoors")
+
+#: Alternates for the keyless fallback, so the switcher is never a single entry.
+KEYLESS_ALTERNATES = ("esri-light",)

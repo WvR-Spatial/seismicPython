@@ -1,43 +1,299 @@
-Seismic Risk Monitor
+# Seismic Risk Monitor
 
-🌍A real-time geospatial analysis tool that monitors global seismic activity and identifies potential risks to populated areas.
+Screens the live USGS earthquake feed for populated places that fall within a
+fixed geodesic radius of a significant event, and publishes the result as a
+self-updating dashboard.
 
-🔗 Live DemoView the Interactive Risk Map: https://wvr-spatial.github.io/seismicPython/risk_analysis_output/seismic_risk_map.html
+**[Open the dashboard →](https://wvr-spatial.github.io/seismicPython/)**
 
-📖 Overview
-This tool fetches live data from the USGS Earthquake Feed and Natural Earth Populated Places, performing a spatial join to identify major cities within a 50km radius of significant earthquakes (> Magnitude 4.0).
-It generates an interactive Dashboard featuring:
-Dark-Mode Map: Styled with high-contrast heatmaps for global visibility.
-Risk Zones: Precise impact polygons generated using geodesic buffering.
-Antimeridian Fix: Robust handling of the International Date Line to prevent geometry rendering artifacts.
-Impact Statistics: Bar charts highlighting the most affected cities by magnitude.
+The site rebuilds itself every six hours from GitHub Actions. Nothing is
+committed back to this repository; the build is deployed straight to GitHub
+Pages from the workflow artifact.
 
-🛠️ InstallationPrerequisites
-Python 3.8 or higher, pip (Python package installer)
-1. Clone the Repository
-2. git clone
-3. cd YOUR_REPO_NAME
-4. Install Dependencies
-This project relies on geospatial libraries. You can install them via pip:pip install geopandas folium plotly shapely requests
+---
 
-Note: On Windows, installing geopandas can sometimes be tricky. If pip fails, it is recommended to use conda or download pre-compiled wheels.
+## What it does
 
-🚀 UsageRun the analysis script directly from your terminal:python seismic_risk_monitor_fixed.py
+1. Fetches the USGS GeoJSON summary feed (default: `2.5_week`).
+2. Keeps events at or above a magnitude threshold (default: M 4.0).
+3. Builds a **true geodesic circle** of a given radius (default: 50 km) around
+   each epicentre on the WGS84 ellipsoid, splitting any circle that crosses the
+   antimeridian into two map-safe halves.
+4. Spatially joins 7,342 Natural Earth populated places against those circles.
+5. Collapses the join to one row per place, carrying the strongest event that
+   reaches it, the nearest one, and how many events do.
+6. Renders a dark-mode Leaflet map, a ranked dot plot, a landing page with
+   summary tiles, and machine-readable CSV / GeoJSON / JSON exports.
 
-Output
-The script will generate a folder named risk_analysis_output containing:
-seismic_risk_map.html: The interactive map (open in any browser).
-risk_chart.png: A static bar chart of impacted cities.
-risk_chart.html: An interactive version of the chart.
+Impact zones are a **fixed-radius screening heuristic**, not a ground-motion or
+damage model. A 50 km circle around an M 4.2 at 500 km depth is not a meaningful
+hazard estimate; treat the output as "what is worth a second look", not as
+intensity. For real shaking estimates, start from the USGS ShakeMap products.
 
-⚙️ How It Works (The "Antimeridian Fix")One common issue in geospatial analysis is the "horizontal line" artifact when projecting geometries that cross the 180th meridian (International Date Line).
-This tool includes a custom function handle_antimeridian_buffers() that:
-Detects geometries crossing the edge of the Web Mercator projection.
-Splits them into MultiPolygons.
-Shifts the overflowing segment to the opposite side of the map.
-This ensures seamless visualization across the Pacific Ocean.
+## Quick start
 
-🤝 Contributing
-Feel free to fork this project and submit pull requests. Any improvements to the visualization styling or data sources are welcome!
+**macOS / Linux:**
 
-📝 LicenseThis project is licensed under the MIT License.
+```bash
+git clone https://github.com/WvR-Spatial/seismicPython.git
+cd seismicPython
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
+
+seismic-monitor          # writes ./site
+```
+
+**Windows (PowerShell):**
+
+```powershell
+git clone https://github.com/WvR-Spatial/seismicPython.git
+cd seismicPython
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e .
+
+seismic-monitor          # writes .\site
+```
+
+Use `py -m venv .venv` and `py -m pip install -e .` if `python` is not on your
+PATH. In `cmd.exe` the activation script is `.venv\Scripts\activate.bat`.
+
+Then open `site/index.html`.
+
+`pip install -e .` puts the package on the import path properly and gives you the
+`seismic-monitor` command. If you would rather not install, you can run the
+module directly, but `PYTHONPATH` has to be set the way your shell expects:
+
+| Shell | Command |
+|---|---|
+| bash / zsh | `PYTHONPATH=src python -m seismic_monitor` |
+| PowerShell | `$env:PYTHONPATH = "src"` then `python -m seismic_monitor` |
+| cmd.exe | `set PYTHONPATH=src` then `python -m seismic_monitor` |
+
+The GitHub Actions workflows use the `PYTHONPATH` form because a CI runner is
+disposable; on a machine you keep, prefer the editable install.
+
+Installing `geopandas` on Windows with plain pip is still occasionally painful.
+If it fails, use `conda install -c conda-forge geopandas` (or `pixi`/`mamba`) and
+install the rest with pip.
+
+### Options
+
+```
+--feed {hour,day,week,month,significant_month}   USGS summary feed (default: week)
+--min-magnitude FLOAT                            magnitude threshold (default: 4.0)
+--radius-km FLOAT                                impact radius, geodesic (default: 50)
+--cities PATH                                    any GeoJSON with name + pop_max columns
+--output-dir PATH                                default: ./site
+--basemap {mapbox-dark,mapbox-satellite,mapbox-outdoors,mapbox-light,
+           mapbox-streets,esri-dark,esri-light,carto-dark}
+                                                 default: mapbox-dark
+--mapbox-token pk....                            prefer the MAPBOX_TOKEN env var
+--max-chart-cities INT                           default: 15
+--chart-png                                      also write a static PNG (needs kaleido + Chrome)
+--quakes-file PATH                               read a saved feed instead of the network
+--fail-on-empty                                  exit 1 when nothing is affected
+-v, --verbose
+```
+
+Examples:
+
+```bash
+# Tighter screen: only M6+, 100 km, past month
+seismic-monitor --feed month --min-magnitude 6 --radius-km 100
+
+# Reproducible offline run against the test fixture
+seismic-monitor --quakes-file tests/fixtures/sample_feed.geojson
+```
+
+**Exit codes:** `0` success, `1` a data source or render step failed, `2` bad
+invocation. This matters in CI — see below.
+
+## Output
+
+Everything lands in `--output-dir` (`site/` by default, git-ignored):
+
+| File | What it is |
+|---|---|
+| `index.html` | Landing page: summary tiles, embedded map and chart, data links |
+| `seismic_risk_map.html` | Standalone Leaflet map |
+| `risk_chart.html` | Ranked dot plot (~11 KB; Plotly loads from a CDN) |
+| `impacted_cities.csv` | One row per affected place, with distances |
+| `impact_zones.geojson` | The geodesic impact polygons |
+| `summary.json` | Machine-readable digest of the run, including `generated_at_utc` |
+
+## Automation
+
+Two workflows:
+
+* **`.github/workflows/publish.yml`** — runs at `17 */6 * * *` (UTC), on manual
+  dispatch, and on pushes that touch the code or data. It builds the site and
+  deploys it with `actions/upload-pages-artifact` + `actions/deploy-pages`.
+* **`.github/workflows/ci.yml`** — lint and the offline test suite on Python 3.10
+  and 3.12 for every push and PR, plus one non-blocking smoke build against the
+  live feed so a change to the USGS schema surfaces on a PR rather than at 03:00.
+
+### One-time setup
+
+1. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
+   This is required; the default "Deploy from a branch" source ignores the
+   workflow entirely.
+2. **Settings → Actions → General → Workflow permissions:** read is enough for
+   publishing (the workflow requests `pages: write` and `id-token: write`
+   explicitly). Only the optional keepalive job needs write access to contents.
+3. **Settings -> Secrets and variables -> Actions -> New repository secret:**
+   `MAPBOX_TOKEN`, set to your Mapbox public (`pk.`) token. Without it the
+   scheduled build still succeeds, but falls back to the Esri basemap.
+   Add `CARTO_API_KEY` too only if you switch `--basemap` to `carto-dark`.
+
+### Two things to know about scheduled workflows
+
+* **They drift.** GitHub delays scheduled runs during periods of high load, and
+  the delay can be tens of minutes. The cron here is deliberately at `:17` rather
+  than `:00` to avoid the worst of it. Never treat the schedule as exact.
+* **They get switched off.** Per GitHub's docs, *"in a public repository,
+  scheduled workflows are automatically disabled when no repository activity has
+  occurred in 60 days."* Workflow runs do not count as activity. If you go two
+  months without pushing, the schedule stops and you get an email asking you to
+  re-enable it. `.github/workflows/keepalive.yml` handles this with a monthly
+  empty commit, but it is **off by default** — set a repository variable
+  `ENABLE_KEEPALIVE` to `true` to turn it on.
+
+### Why not commit the output?
+
+The map is ~700 KB per build. Committing it every six hours would add roughly
+1 GB a year to a repository that git will keep forever, and it would bury the
+actual source history under generated-file noise. Artifact-based Pages
+deployment keeps the repository at its true size.
+
+## Design notes
+
+### Geodesic buffers, not Web Mercator
+
+The obvious way to buffer a point by 50 km is to project to EPSG:3857, call
+`.buffer(50_000)` and project back. It is wrong. Web Mercator is conformal but
+not equidistant: a metre on the projected plane is `cos(latitude)` metres on the
+ground. A "50 km" buffer covers ~25 km at 60°N and ~13 km at 75°N — precisely
+the latitudes with a lot of seismicity (Alaska, the Aleutians, Kamchatka,
+Iceland).
+
+`geodesy.geodesic_circle()` walks 180 azimuths out from the epicentre with
+`pyproj.Geod.fwd` on the WGS84 ellipsoid, so 50 km is 50 km everywhere.
+`tests/test_geodesy.py` asserts this directly, including a case that the
+projected buffer misses and the geodesic one catches.
+
+### Antimeridian handling
+
+Circles are generated with *unwrapped* longitudes, so one centred at 179.85°E
+legitimately extends past 180. `split_antimeridian()` then clips the overflow
+and translates it 360° to the other side, giving a MultiPolygon with a piece on
+each edge of the map instead of a band smeared across the Pacific. Area is
+preserved — there is a test for that.
+
+### One row per place
+
+A city inside three overlapping impact zones produced three rows in the raw
+spatial join, which triple-counted it in the exposure totals and the chart.
+`analysis._summarise()` collapses the join to one row per place, keeping the
+strongest event, the nearest event and an event count.
+
+### Dot plot, not bar chart
+
+Every value in the ranked chart is at or above the magnitude threshold, so bars
+anchored at zero would all be within ~25% of each other and the ranking would be
+unreadable. A dot plot encodes position rather than length, which lets the axis
+start at the threshold honestly. The axis label says so.
+
+### Basemaps
+
+The default is **Mapbox `dark-v11`**, which needs a public access token. Set it
+once and the build picks it up:
+
+```powershell
+$env:MAPBOX_TOKEN = "pk...."      # PowerShell
+```
+```bash
+export MAPBOX_TOKEN="pk...."      # bash / zsh
+```
+
+`--mapbox-token pk....` also works, but a token passed on the command line ends
+up in your shell history, so the environment variable is preferred.
+
+`--basemap` also accepts `mapbox-satellite`, `mapbox-outdoors` (terrain),
+`mapbox-light`, `mapbox-streets`, `esri-dark`, `esri-light` and `carto-dark`.
+
+The layer switcher offers the chosen style plus **Satellite** and **Terrain** —
+satellite gives physical context for a remote epicentre, terrain shows the relief
+that usually explains why the seismicity is there. One token covers every Mapbox
+style, so the extra layers cost nothing.
+
+#### Why there is no OpenStreetMap layer
+
+An earlier version offered `tile.openstreetmap.org` as a free fallback. That was
+wrong, and the published map was flagged for policy misuse. The OSM Foundation's
+[Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/) does
+not allow their servers to back a third-party application's basemap: it requires
+a distinctive `User-Agent`, a valid `Referer`, local caching, and it prohibits
+automated or bulk fetching. A dashboard serving arbitrary visitors does not meet
+that bar. OSM data still underlies the Mapbox styles — Mapbox serves the tiles
+and the map carries the required "© OpenStreetMap" attribution.
+
+Every alternate layer now comes from a provider the build has already
+authenticated, so no layer can quietly depend on someone else's goodwill.
+
+**If no token is found, the build does not fail** -- it logs a warning and uses
+the keyless Esri dark canvas instead. A tokenless Mapbox layer would 401 on every
+tile and publish a silently blank map, which is worse than a plainer basemap.
+
+CARTO's raster basemaps (including `dark_matter`) now require their own API key
+and stamp an "API KEY REQUIRED" watermark across unauthenticated tiles; a Mapbox
+token will not authenticate them. Set `CARTO_API_KEY` if you want that provider.
+
+#### Keeping the token honest
+
+A browser-side Mapbox token is **always visible in the published page source** --
+that is how client-side tile requests work, and it is not a flaw. The protection
+is not secrecy, it is scope:
+
+1. In the Mapbox account, give the token **URL restrictions** for the domains
+   that are allowed to use it (your portfolio domain and
+   `https://wvr-spatial.github.io`). An unrestricted token can be lifted from any
+   page and spent against your free tier by anyone.
+2. Keep it to the `styles:read`, `fonts:read` and `tilesets:read` scopes. It
+   should never be a secret (`sk.`) token.
+3. Set a **usage limit** on the account so a scrape cannot produce a bill.
+
+The token is not committed to this repository. The workflow reads it from a
+`MAPBOX_TOKEN` repository secret (Settings -> Secrets and variables -> Actions),
+which keeps it out of the source history and out of forks. That does not hide it
+from viewers of the published page -- only steps 1-3 do that.
+
+## Data
+
+* **Earthquakes** — [USGS Earthquake Hazards Program](https://earthquake.usgs.gov/earthquakes/feed/),
+  public domain, fetched live.
+* **Populated places** — [Natural Earth](https://www.naturalearthdata.com/) 1:10m
+  (7,342 places), public domain, vendored in `data/`. See
+  [`data/README.md`](data/README.md) for why it is vendored and how to refresh or
+  replace it.
+
+The previous version used Natural Earth **1:110m**, which contains 243 cities
+worldwide. A typical week of global seismicity produced zero or one "impacted
+city" — the analysis ran, but told you almost nothing.
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest          # fully offline; runs against tests/fixtures/sample_feed.geojson
+ruff check src tests tools
+```
+
+`pytest` needs no `PYTHONPATH` on any platform: `pyproject.toml` sets
+`pythonpath = ["src"]` for the test runner.
+
+The test suite never touches the network, so a USGS outage cannot turn CI red.
+
+## Licence
+
+MIT — see [LICENSE](LICENSE).

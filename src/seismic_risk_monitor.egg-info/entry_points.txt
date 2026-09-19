@@ -1,0 +1,2 @@
+[console_scripts]
+seismic-monitor = seismic_monitor.cli:main

@@ -85,7 +85,9 @@ install the rest with pip.
 --radius-km FLOAT                                impact radius, geodesic (default: 50)
 --cities PATH                                    any GeoJSON with name + pop_max columns
 --output-dir PATH                                default: ./site
---basemap {esri-dark,esri-light,osm,carto-dark}  default: esri-dark
+--basemap {mapbox-dark,mapbox-light,mapbox-satellite,esri-dark,esri-light,osm,carto-dark}
+                                                 default: mapbox-dark
+--mapbox-token pk....                            prefer the MAPBOX_TOKEN env var
 --max-chart-cities INT                           default: 15
 --chart-png                                      also write a static PNG (needs kaleido + Chrome)
 --quakes-file PATH                               read a saved feed instead of the network
@@ -138,8 +140,10 @@ Two workflows:
 2. **Settings → Actions → General → Workflow permissions:** read is enough for
    publishing (the workflow requests `pages: write` and `id-token: write`
    explicitly). Only the optional keepalive job needs write access to contents.
-3. Optional: add a `CARTO_API_KEY` repository secret to use CARTO's dark basemap
-   (see below).
+3. **Settings -> Secrets and variables -> Actions -> New repository secret:**
+   `MAPBOX_TOKEN`, set to your Mapbox public (`pk.`) token. Without it the
+   scheduled build still succeeds, but falls back to the Esri basemap.
+   Add `CARTO_API_KEY` too only if you switch `--basemap` to `carto-dark`.
 
 ### Two things to know about scheduled workflows
 
@@ -201,11 +205,49 @@ start at the threshold honestly. The axis label says so.
 
 ### Basemaps
 
-CARTO's raster basemaps (including `dark_matter`) now require an API key and
-stamp an "API KEY REQUIRED" watermark across unauthenticated tiles. The default
-is therefore Esri's keyless dark canvas, with OpenStreetMap always available as a
-second layer so a tile outage never leaves a blank rectangle. To use CARTO, set a
-`CARTO_API_KEY` environment variable and pass `--basemap carto-dark`.
+The default is **Mapbox `dark-v11`**, which needs a public access token. Set it
+once and the build picks it up:
+
+```powershell
+$env:MAPBOX_TOKEN = "pk...."      # PowerShell
+```
+```bash
+export MAPBOX_TOKEN="pk...."      # bash / zsh
+```
+
+`--mapbox-token pk....` also works, but a token passed on the command line ends
+up in your shell history, so the environment variable is preferred.
+
+`--basemap` also accepts `mapbox-light`, `mapbox-satellite`, `esri-dark`,
+`esri-light`, `osm` and `carto-dark`. OpenStreetMap is always added as a second
+selectable layer, so a tile outage or a bad token never leaves a blank rectangle.
+
+**If no token is found, the build does not fail** -- it logs a warning and uses
+the keyless Esri dark canvas instead. A tokenless Mapbox layer would 401 on every
+tile and publish a silently blank map, which is worse than a plainer basemap.
+
+CARTO's raster basemaps (including `dark_matter`) now require their own API key
+and stamp an "API KEY REQUIRED" watermark across unauthenticated tiles; a Mapbox
+token will not authenticate them. Set `CARTO_API_KEY` if you want that provider.
+
+#### Keeping the token honest
+
+A browser-side Mapbox token is **always visible in the published page source** --
+that is how client-side tile requests work, and it is not a flaw. The protection
+is not secrecy, it is scope:
+
+1. In the Mapbox account, give the token **URL restrictions** for the domains
+   that are allowed to use it (your portfolio domain and
+   `https://wvr-spatial.github.io`). An unrestricted token can be lifted from any
+   page and spent against your free tier by anyone.
+2. Keep it to the `styles:read`, `fonts:read` and `tilesets:read` scopes. It
+   should never be a secret (`sk.`) token.
+3. Set a **usage limit** on the account so a scrape cannot produce a bill.
+
+The token is not committed to this repository. The workflow reads it from a
+`MAPBOX_TOKEN` repository secret (Settings -> Secrets and variables -> Actions),
+which keeps it out of the source history and out of forks. That does not hide it
+from viewers of the published page -- only steps 1-3 do that.
 
 ## Data
 

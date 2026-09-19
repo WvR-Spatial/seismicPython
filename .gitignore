@@ -12,6 +12,12 @@ env/
 build/
 dist/
 
+# Secrets / tokens -- never commit an access token, even a public "pk." one.
+.env
+.env.*
+!.env.example
+*.token
+
 # Tooling
 .pytest_cache/
 .ruff_cache/

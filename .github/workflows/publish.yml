@@ -68,8 +68,12 @@ jobs:
             --output-dir site
         env:
           PYTHONPATH: src
-          # Optional: set this repository secret to use CARTO's dark basemap.
-          # Without it the build uses the keyless Esri dark canvas.
+          # Mapbox public access token. Add it under
+          # Settings -> Secrets and variables -> Actions -> Secrets.
+          # Without it the build falls back to the keyless Esri dark canvas, so a
+          # missing secret degrades the map rather than breaking the deploy.
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+          # Only needed if you switch --basemap to carto-dark.
           CARTO_API_KEY: ${{ secrets.CARTO_API_KEY }}
 
       - name: Check the build produced something
@@ -77,6 +81,8 @@ jobs:
           test -s site/index.html
           test -s site/seismic_risk_map.html
           test -s site/summary.json
+          grep -q "api.mapbox.com" site/seismic_risk_map.html \
+            || echo "::warning::No Mapbox tiles in the output - is the MAPBOX_TOKEN secret set?"
           echo "Site contents:" && ls -la site
 
       - uses: actions/upload-pages-artifact@v3

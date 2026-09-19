@@ -72,10 +72,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--basemap",
         choices=sorted(BASEMAPS),
-        default="esri-dark",
+        default="mapbox-dark",
         help=(
-            "Tile layer for the map (default: esri-dark). 'carto-dark' requires a "
-            "CARTO_API_KEY environment variable; CARTO watermarks unauthenticated tiles."
+            "Tile layer for the map (default: mapbox-dark). Mapbox styles need "
+            "--mapbox-token or MAPBOX_TOKEN; carto-dark needs CARTO_API_KEY. Without "
+            "the right token the build falls back to the keyless esri-dark canvas."
+        ),
+    )
+    parser.add_argument(
+        "--mapbox-token",
+        default=None,
+        metavar="pk....",
+        help=(
+            "Mapbox public access token. Prefer the MAPBOX_TOKEN environment variable; "
+            "a token passed on the command line ends up in your shell history."
         ),
     )
     parser.add_argument(
@@ -134,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         radius_km=args.radius_km,
         max_chart_cities=args.max_chart_cities,
         basemap=args.basemap,
+        mapbox_token=args.mapbox_token,
         chart_png=args.chart_png,
     )
 

@@ -62,3 +62,4 @@ jobs:
         run: python -m seismic_monitor --feed day --output-dir site
         env:
           PYTHONPATH: src
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}

@@ -49,8 +49,15 @@ class Config:
     chart_png: bool = False
     """Also write a static PNG of the chart. Needs `kaleido` and a local Chrome."""
 
-    basemap: str = "esri-dark"
-    """Tile layer key. See ``theme.BASEMAPS``; ``carto-dark`` needs CARTO_API_KEY."""
+    basemap: str = "mapbox-dark"
+    """Tile layer key -- see ``theme.BASEMAPS``.
+
+    Mapbox styles need an access token (``--mapbox-token`` or ``MAPBOX_TOKEN``);
+    without one the build falls back to the keyless Esri dark canvas.
+    """
+
+    mapbox_token: str | None = None
+    """Mapbox public access token. Never read from, or stored in, the repository."""
 
     site_title: str = "Seismic Risk Monitor"
     repo_url: str = "https://github.com/WvR-Spatial/seismicPython"

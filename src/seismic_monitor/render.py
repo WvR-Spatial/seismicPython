@@ -9,6 +9,7 @@ import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
 import folium
 import geopandas as gpd
@@ -150,39 +151,64 @@ def _render_map(
     return path
 
 
-def _add_basemaps(fmap: folium.Map, config: Config) -> None:
-    """Add the chosen basemap plus one keyless alternative.
+def resolve_token(key: str, config: Config) -> str | None:
+    """Find the access token for a basemap, or None if it needs none.
 
-    CARTO tiles are only wired up when ``CARTO_API_KEY`` is set; without it they
-    render an "API KEY REQUIRED" watermark over the whole map, which is what the
-    previous hard-coded ``CartoDB dark_matter`` basemap now does.
+    Order of precedence: an explicit ``--mapbox-token``, then the environment
+    variable named by the basemap's ``token_env``. Tokens are never read from,
+    or written to, the repository.
     """
-    chosen = config.basemap if config.basemap in theme.BASEMAPS else theme.DEFAULT_BASEMAP
-    order = [chosen]
-    if chosen != theme.FALLBACK_BASEMAP:
-        order.append(theme.FALLBACK_BASEMAP)
+    spec = theme.BASEMAPS.get(key, {})
+    env_name = spec.get("token_env")
+    if not env_name:
+        return None
+    if env_name == "MAPBOX_TOKEN" and config.mapbox_token:
+        return config.mapbox_token
+    return os.environ.get(env_name) or None
 
-    for index, key in enumerate(order):
-        spec = theme.BASEMAPS[key]
-        url = spec["url"]
-        if key.startswith("carto"):
-            api_key = os.environ.get("CARTO_API_KEY")
-            if not api_key:
-                log.warning(
-                    "Basemap %r needs CARTO_API_KEY; falling back to %r",
-                    key,
-                    theme.DEFAULT_BASEMAP,
-                )
-                spec = theme.BASEMAPS[theme.DEFAULT_BASEMAP]
-                url = spec["url"]
-            else:
-                url = f"{url}?key={api_key}"
 
+def _resolve_basemap(key: str, config: Config) -> tuple[str, dict, str]:
+    """Return ``(key, spec, url)`` for a basemap, falling back if it has no token.
+
+    A token-bearing basemap without a token renders either nothing (Mapbox 401s)
+    or an "API KEY REQUIRED" watermark (CARTO), so it is better to quietly use
+    the keyless default and say so in the log than to publish a broken map.
+    """
+    spec = theme.BASEMAPS[key]
+    env_name = spec.get("token_env")
+    if not env_name:
+        return key, spec, spec["url"]
+
+    token = resolve_token(key, config)
+    if not token:
+        log.warning(
+            "Basemap %r needs %s but none was found; using %r instead.",
+            key,
+            env_name,
+            theme.DEFAULT_BASEMAP,
+        )
+        fallback = theme.DEFAULT_BASEMAP
+        return fallback, theme.BASEMAPS[fallback], theme.BASEMAPS[fallback]["url"]
+
+    return key, spec, spec["url"].replace("{token}", quote(token, safe=""))
+
+
+def _add_basemaps(fmap: folium.Map, config: Config) -> None:
+    """Add the chosen basemap plus one keyless alternative."""
+    requested = config.basemap if config.basemap in theme.BASEMAPS else theme.DEFAULT_BASEMAP
+    key, spec, url = _resolve_basemap(requested, config)
+
+    layers = [(key, spec, url)]
+    if key != theme.FALLBACK_BASEMAP:
+        fallback = theme.BASEMAPS[theme.FALLBACK_BASEMAP]
+        layers.append((theme.FALLBACK_BASEMAP, fallback, fallback["url"]))
+
+    for index, (_key, layer_spec, layer_url) in enumerate(layers):
         folium.TileLayer(
-            tiles=url,
-            attr=spec["attr"],
-            name=spec["name"],
-            max_zoom=int(spec["max_zoom"]),
+            tiles=layer_url,
+            attr=layer_spec["attr"],
+            name=layer_spec["name"],
+            max_zoom=int(layer_spec["max_zoom"]),
             control=True,
             overlay=False,
             show=index == 0,

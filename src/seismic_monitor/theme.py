@@ -37,13 +37,55 @@ FONT_STACK = (
 )
 MONO_STACK = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
 
+MAPBOX_ATTRIBUTION = (
+    '&copy; <a href="https://www.mapbox.com/about/maps/" target="_blank" '
+    'rel="noopener">Mapbox</a> '
+    '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" '
+    'rel="noopener">OpenStreetMap</a> '
+    '<a href="https://www.mapbox.com/map-feedback/" target="_blank" '
+    'rel="noopener"><strong>Improve this map</strong></a>'
+)
+
 #: Basemaps, keyed by the CLI ``--basemap`` value.
+#:
+#: ``token_env`` names the environment variable holding that provider's access
+#: token. A basemap that needs one and cannot find it falls back to
+#: :data:`DEFAULT_BASEMAP` rather than rendering broken or watermarked tiles.
 #:
 #: CARTO's raster basemaps (``dark_matter``, ``positron``) now require an API key
 #: and stamp an "API KEY REQUIRED" watermark across unauthenticated tiles, which
-#: is why the default here is Esri's keyless dark canvas. Set ``CARTO_API_KEY``
-#: and pass ``--basemap carto-dark`` to go back to CARTO.
+#: is why the keyless fallback is Esri's dark canvas rather than CARTO's.
 BASEMAPS: dict[str, dict[str, str]] = {
+    "mapbox-dark": {
+        "url": (
+            "https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/"
+            "{z}/{x}/{y}@2x?access_token={token}"
+        ),
+        "attr": MAPBOX_ATTRIBUTION,
+        "name": "Dark (Mapbox)",
+        "max_zoom": "22",
+        "token_env": "MAPBOX_TOKEN",
+    },
+    "mapbox-light": {
+        "url": (
+            "https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/"
+            "{z}/{x}/{y}@2x?access_token={token}"
+        ),
+        "attr": MAPBOX_ATTRIBUTION,
+        "name": "Light (Mapbox)",
+        "max_zoom": "22",
+        "token_env": "MAPBOX_TOKEN",
+    },
+    "mapbox-satellite": {
+        "url": (
+            "https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/256/"
+            "{z}/{x}/{y}@2x?access_token={token}"
+        ),
+        "attr": MAPBOX_ATTRIBUTION,
+        "name": "Satellite (Mapbox)",
+        "max_zoom": "22",
+        "token_env": "MAPBOX_TOKEN",
+    },
     "esri-dark": {
         "url": (
             "https://server.arcgisonline.com/ArcGIS/rest/services/"
@@ -69,13 +111,18 @@ BASEMAPS: dict[str, dict[str, str]] = {
         "max_zoom": "19",
     },
     "carto-dark": {
-        "url": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        "url": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key={token}",
         "attr": "&copy; OpenStreetMap contributors &copy; CARTO",
         "name": "Dark matter (CARTO)",
         "max_zoom": "20",
+        "token_env": "CARTO_API_KEY",
     },
 }
 
+#: Preferred basemap. Needs MAPBOX_TOKEN; without it the build silently uses
+#: DEFAULT_BASEMAP so a local run with no credentials still produces a usable map.
+PREFERRED_BASEMAP = "mapbox-dark"
+#: Keyless basemap used whenever a token-bearing basemap has no token.
 DEFAULT_BASEMAP = "esri-dark"
 #: Always offered as an alternative layer, so a tile outage never leaves a blank map.
 FALLBACK_BASEMAP = "osm"

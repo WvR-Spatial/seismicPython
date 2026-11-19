@@ -4,6 +4,10 @@ name: Build and publish dashboard
 # the build artifact. Nothing is committed back to the repository: the map alone
 # is ~700 KB and git keeps every version forever, so committing each rebuild
 # would grow the repo without bound.
+#
+# Because nothing is committed, the scheduled runs never count as repository
+# activity, and GitHub disables a public repo's scheduled workflows after 60
+# days without activity. The keepalive job at the bottom handles that.
 
 on:
   schedule:
@@ -98,3 +102,32 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  keepalive:
+    # GitHub disables scheduled workflows in a public repository after 60 days
+    # without repository activity. Calling the "enable" endpoint on a workflow
+    # that is already enabled resets that clock. GitHub does not document the
+    # reset, but it is the mechanism the common keepalive actions rely on.
+    #
+    # Why it lives here rather than in a separate keepalive workflow:
+    # - It runs on every scheduled build, so the clock never gets near 60 days.
+    # - It does not depend on the build: a broken upstream feed fails the build
+    #   but still keeps the schedule alive, so the site recovers on its own once
+    #   the feed is back.
+    # - A separate scheduled keepalive is itself subject to the same 60-day rule.
+    # No commits, no third-party action (gh is preinstalled on the runner), and
+    # only this job holds actions: write.
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Reset the 60-day inactivity clock
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/publish.yml/enable"
+          state=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/publish.yml" --jq .state)
+          echo "publish.yml state: ${state}"
+          test "${state}" = "active"
